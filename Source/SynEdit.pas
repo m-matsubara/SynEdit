@@ -1,4 +1,4 @@
-{-------------------------------------------------------------------------------
+ï»¿{-------------------------------------------------------------------------------
 The contents of this file are subject to the Mozilla Public License
 Version 1.1 (the "License"); you may not use this file except in compliance
 with the License. You may obtain a copy of the License at
@@ -12,7 +12,7 @@ The Original Code is: SynEdit.pas, released 2000-04-07.
 The Original Code is based on mwCustomEdit.pas by Martin Waldenburg, part of
 the mwEdit component suite.
 Portions created by Martin Waldenburg are Copyright (C) 1998 Martin Waldenburg.
-Unicode translation by Maël Hörz.
+Unicode translation by MaÃ«l HÃ¶rz.
 All Rights Reserved.
 
 Contributors to the SynEdit and mwEdit projects are listed in the
@@ -8167,11 +8167,13 @@ begin
           begin
             BeginUndoBlock;
             try
-              FUndoList.AddChange(crDelete, FBlockBegin, FBlockEnd, Helper,
+              FUndoList.AddChange(crDelete, FBlockBegin, FBlockEnd, SelText,
                 smNormal);
-              StartOfBlock := FBlockBegin;
+              StartOfBlock := BlockBegin;
+              EndOfBlock.Line := BlockBegin.Line;
+              EndOfBlock.Char := BlockBegin.Char + Length(s);
               SetSelTextPrimitive(s);
-              FUndoList.AddChange(crInsert, FBlockBegin, FBlockEnd, Helper,
+              FUndoList.AddChange(crInsert, StartOfBlock, EndOfBlock, '',
                 smNormal);
             finally
               EndUndoBlock;
