@@ -4976,7 +4976,7 @@ begin
       SetCaretPos(CX, CY);
       HideCaret;
     end;
-    if (Self.SelLength = 0) then
+    if (Self.SelAvail = False) then
     begin
       cf.dwStyle := CFS_POINT;
       cf.ptCurrentPos := Point(CX, CY);
