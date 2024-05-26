@@ -477,8 +477,6 @@ type
     procedure LinesChanging(Sender: TObject);
     procedure MoveCaretAndSelection(const NewPos: TBufferCoord; SelectionCmd:
         Boolean);
-    procedure MoveDisplayPosAndSelection(const NewPos: TDisplayCoord;
-      SelectionCmd: Boolean);
     procedure MoveCaretHorz(DX: Integer; SelectionCommand: Boolean);
     procedure MoveCaretVert(DY: Integer; SelectionCommand: Boolean);
     procedure PluginsAfterPaint(ACanvas: TCanvas; const AClip: TRect;
@@ -737,6 +735,8 @@ type
     function IsBookmark(BookMark: Integer): Boolean;
     function IsPointInSelection(const Value: TBufferCoord): Boolean;
     procedure LockUndo;
+    procedure MoveDisplayPosAndSelection(const NewPos: TDisplayCoord;
+      SelectionCmd: Boolean);
     function BufferToDisplayPos(const p: TBufferCoord): TDisplayCoord;
     function DisplayToBufferPos(const p: TDisplayCoord): TBufferCoord;
     function LineToRow(aLine: Integer): Integer;
@@ -2991,7 +2991,7 @@ var
   LayoutWidth: Integer;
   SLine, SRow: string;
   FirstChar, LastChar: Integer;
-  ExistedNoprintChars: Boolean;
+  DoSpecialCharPainting: Boolean;
   Layout: TSynTextLayout;
   BGColor, FGColor, SpecialCharsColor: TColor;
   TokenPos, TokenLen: Integer;
@@ -3027,7 +3027,7 @@ begin
 
     SRow := Rows[Row];
     CharOffset := DisplayToBufferPos(DisplayCoord(1, Row)).Char;
-    ExistedNoprintChars := False;
+    DoSpecialCharPainting := False;
 
     // TextHint
     if (Lines.Count <= 1) and (SLine = '') then
@@ -3040,9 +3040,9 @@ begin
     if (eoShowSpecialChars in fOptions) and (LastChar >= 0) then
     begin
       for I := FirstChar to LastChar do
-        if CharInSet(SRow[I], [#$9, #$20, #$A0]) then
+        if IsWhiteChar(SRow[I]) then
         begin
-          ExistedNoprintChars := True;
+          DoSpecialCharPainting := True;
           break;
         end;
       // Add LineBreak Glyph
@@ -3244,15 +3244,15 @@ begin
       Layout.Draw(RT, FTextOffset + XRowOffset, YRowOffset(Row), FGColor);
     end;
 
-    // Paint tab control characters
-    if ExistedNoprintChars then
+    // Paint special characters (whitespace)
+    if DoSpecialCharPainting then
     begin
       if FullRowFG <> clNone then
         SpecialCharsColor := FullRowFG
       else
         SpecialCharsColor := WhitespaceColor(False);
       for I := FirstChar to LastChar do
-        if CharInSet(SRow[I], [#$9, #$20, #$A0]) then
+        if IsWhiteChar(SRow[I]) then
         begin
           if InRange(I, SelFirst, SelLast) and
             SameValue(fSelectedColor.Alpha, 1)
@@ -9080,9 +9080,8 @@ begin
   if Assigned(Highlighter) then
     Result := Highlighter.IsIdentChar(AChar)
   else
-    Result := (AChar = '_') or  AChar.IsLetterOrDigit or
-      CharInSet(AChar, FAdditionalIdentChars) and
-      not IsWordBreakChar(AChar);
+    Result := (AChar = '_') or AChar.IsLetterOrDigit or
+      CharInSet(AChar, FAdditionalIdentChars);
 end;
 
 function TCustomSynEdit.IsNonWhiteChar(AChar: WideChar): Boolean;
@@ -9094,10 +9093,8 @@ function TCustomSynEdit.IsWhiteChar(AChar: WideChar): Boolean;
 begin
   if Assigned(Highlighter) then
     Result := Highlighter.IsWhiteChar(AChar)
-  else if AChar.IsWhiteSpace then
-    Result := True
   else
-    Result := not (IsIdentChar(AChar) or IsWordBreakChar(AChar));
+    Result := AChar.IsWhiteSpace and not IsIdentChar(AChar);
 end;
 
 function TCustomSynEdit.IsWordBreakChar(AChar: WideChar): Boolean;
@@ -9117,7 +9114,7 @@ begin
     end;
 
     Result := Result or CharInSet(AChar, FAdditionalWordBreakChars);
-    Result := Result and not CharInSet(AChar, FAdditionalIdentChars);
+    Result := Result and not IsIdentChar(AChar);
   end;
 end;
 
