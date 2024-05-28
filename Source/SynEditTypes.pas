@@ -12,7 +12,7 @@ The Original Code is: SynEditTypes.pas, released 2000-04-07.
 The Original Code is based on parts of mwCustomEdit.pas by Martin Waldenburg,
 part of the mwEdit component suite.
 Portions created by Martin Waldenburg are Copyright (C) 1998 Martin Waldenburg.
-Unicode translation by MaÎl Hˆrz.
+Unicode translation by MaÅE Hˆrz.
 All Rights Reserved.
 
 Contributors to the SynEdit and mwEdit projects are listed in the
@@ -79,6 +79,8 @@ type
 
   PSynSelectionMode = ^TSynSelectionMode;
   TSynSelectionMode = (smNormal, smLine, smColumn);
+
+  TSynSpecialCharsAlign = (sscaLeading, sscaCenter, sscaTrailing);
 
   TBufferCoord = record
     Char: integer;
