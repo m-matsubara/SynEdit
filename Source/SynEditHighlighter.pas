@@ -234,6 +234,7 @@ type
 implementation
 
 uses
+  System.Character,
   SynEditMiscProcs,
   SynEditStrConst;
 
@@ -985,7 +986,6 @@ begin
       Result := False;
   end;
   Result := Result or CharInSet(AChar, FAdditionalIdentChars);
-  Result := Result and not IsWordBreakChar(AChar);
 end;
 
 function TSynCustomHighlighter.IsKeyword(const AKeyword: string): Boolean;
@@ -1003,8 +1003,10 @@ begin
   case Ord(AChar) of
     0..32:
       Result := True;
+    $3000:  // Ideographic space
+      Result := True;
     else
-      Result := not (IsIdentChar(AChar) or IsWordBreakChar(AChar))
+      Result := AChar.IsWhiteSpace and not IsIdentChar(AChar);
   end
 end;
 
@@ -1025,7 +1027,7 @@ begin
     end;
   end;
   Result := Result or CharInSet(AChar, FAdditionalWordBreakChars);
-  Result := Result and not CharInSet(AChar, FAdditionalIdentChars);
+  Result := Result and not IsIdentChar(AChar);
 end;
 
 function TSynCustomHighlighter.SaveToIniFile(AIni: TCustomIniFile): Boolean;

@@ -12,7 +12,7 @@
   The Original Code is based on the mwSupportClasses.pas file from the
   mwEdit component suite by Martin Waldenburg and other developers, the Initial
   Author of this file is Michael Hieke.
-  Unicode translation by MaÎl Hˆrz.
+  Unicode translation by MaÅE Hˆrz.
   All Rights Reserved.
 
   Contributors to the SynEdit and mwEdit projects are listed in the
@@ -635,6 +635,31 @@ type
       UnbalancedBracketSpec: TSynIndicatorSpec);
   end;
 
+  TSynSpecialChars = class(TPersistent)
+  private
+    FTabGlyph: WideChar;
+    FTabAlign: TSynSpecialCharsAlign;
+    FLineBreakGlyph: WideChar;
+    FSpaceGlyph: WideChar;
+    FIdepgraphicSpaceGlyph: WideChar;
+    FOnChange: TNotifyEvent;
+  protected
+    procedure SetTabGlyph(const TabGlyph: WideChar);
+    procedure SetTabAlign(const TabAlign: TSynSpecialCharsAlign);
+    procedure SetLineBreakGlyph(const LineBreakGlyph: WideChar);
+    procedure SetSpaceGlyph(const SpaceGlyph: WideChar);
+    procedure SetIdepgraphicSpaceGlyph(const IdepgraphicSpaceGlyph: WideChar);
+  public
+    constructor Create;
+    procedure Assign(aSource: TPersistent); override;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+  published
+    property TabGlyph: WideChar read FTabGlyph write SetTabGlyph default #$2192{SynTabGlyph};
+    property TabAlign: TSynSpecialCharsAlign read FTabAlign write SetTabAlign default sscaCenter;
+    property LineBreakGlyph: WideChar read FLineBreakGlyph write SetLineBreakGlyph default #$00B6{SynLineBreakGlyph};
+    property SpaceGlyph: WideChar read FSpaceGlyph write SetSpaceGlyph default #$2219{SynSpaceGlyph};
+    property IdepgraphicSpaceGlyph: WideChar read FIdepgraphicSpaceGlyph write SetIdepgraphicSpaceGlyph default #$2219{SynSpaceGlyph};
+  end;
 
 implementation
 
@@ -2911,5 +2936,81 @@ begin
 end;
 
 {$ENDREGION}
+
+constructor TSynSpecialChars.Create;
+begin
+  FTabGlyph := SynTabGlyph;
+  FTabAlign := sscaCenter;
+  FLineBreakGlyph := SynLineBreakGlyph;
+  FSpaceGlyph := SynSpaceGlyph;
+  FIdepgraphicSpaceGlyph := SynSpaceGlyph;
+end;
+
+procedure TSynSpecialChars.Assign(aSource: TPersistent);
+var
+  vSrc: TSynSpecialChars;
+begin
+  if Assigned(aSource) and (aSource is TSynSpecialChars) then
+  begin
+    vSrc := TSynSpecialChars(aSource);
+    FTabGlyph := vSrc.TabGlyph;
+    FTabAlign := vSrc.TabAlign;
+    FLineBreakGlyph := vSrc.LineBreakGlyph;
+    FSpaceGlyph := vSrc.FSpaceGlyph;
+    FIdepgraphicSpaceGlyph := vSrc.IdepgraphicSpaceGlyph;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
+procedure TSynSpecialChars.SetTabGlyph(const TabGlyph: WideChar);
+begin
+  if (FTabGlyph <> TabGlyph) then
+  begin
+    FTabGlyph := TabGlyph;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
+procedure TSynSpecialChars.SetTabAlign(const TabAlign: TSynSpecialCharsAlign);
+begin
+  if (FTabAlign <> TabAlign) then
+  begin
+    FTabAlign := TabAlign;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
+procedure TSynSpecialChars.SetLineBreakGlyph(const LineBreakGlyph: WideChar);
+begin
+  if (FLineBreakGlyph <> LineBreakGlyph) then
+  begin
+    FLineBreakGlyph := LineBreakGlyph;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
+procedure TSynSpecialChars.SetSpaceGlyph(const SpaceGlyph: WideChar);
+begin
+  if (FSpaceGlyph <> SpaceGlyph) then
+  begin
+    FSpaceGlyph := SpaceGlyph;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
+procedure TSynSpecialChars.SetIdepgraphicSpaceGlyph(const IdepgraphicSpaceGlyph: WideChar);
+begin
+  if (FIdepgraphicSpaceGlyph <> IdepgraphicSpaceGlyph) then
+  begin
+    FIdepgraphicSpaceGlyph := IdepgraphicSpaceGlyph;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
 
 end.

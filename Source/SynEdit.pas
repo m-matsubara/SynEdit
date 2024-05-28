@@ -384,6 +384,7 @@ type
     SelStartBeforeSearch: integer;
     SelLengthBeforeSearch: integer;
     FBracketsHighlight: TSynBracketsHighlight;
+    fSpecialChars: TSynSpecialChars;
 
     // Accessibility
     FUIAutomationProvider: IInterface;  // IRawElementProviderSimple
@@ -477,8 +478,6 @@ type
     procedure LinesChanging(Sender: TObject);
     procedure MoveCaretAndSelection(const NewPos: TBufferCoord; SelectionCmd:
         Boolean);
-    procedure MoveDisplayPosAndSelection(const NewPos: TDisplayCoord;
-      SelectionCmd: Boolean);
     procedure MoveCaretHorz(DX: Integer; SelectionCommand: Boolean);
     procedure MoveCaretVert(DY: Integer; SelectionCommand: Boolean);
     procedure PluginsAfterPaint(ACanvas: TCanvas; const AClip: TRect;
@@ -518,6 +517,7 @@ type
     procedure SetSearchEngine(Value: TSynEditSearchCustom);
     procedure SetSelectedColor(const Value: TSynSelectedColor);
     procedure SetSelectionMode(const Value: TSynSelectionMode);
+    procedure SetSpecialChars(const Value: TSynSpecialChars);
     procedure SetActiveSelectionMode(const Value: TSynSelectionMode);
     procedure SetTabWidth(Value: Integer);
     procedure SynSetText(const Value: string);
@@ -534,6 +534,7 @@ type
     procedure WriteRemovedKeystrokes(Writer: TWriter);
     procedure SetAdditionalIdentChars(const Value: TSysCharSet);
     procedure SetAdditionalWordBreakChars(const Value: TSysCharSet);
+    procedure SpecialCharsChanged(Sender: TObject);
 
     procedure DoSearchFindFirstExecute(Action: TSearchFindFirst);
     procedure DoSearchFindExecute(Action: TSearchFind);
@@ -737,6 +738,8 @@ type
     function IsBookmark(BookMark: Integer): Boolean;
     function IsPointInSelection(const Value: TBufferCoord): Boolean;
     procedure LockUndo;
+    procedure MoveDisplayPosAndSelection(const NewPos: TDisplayCoord;
+      SelectionCmd: Boolean);
     function BufferToDisplayPos(const p: TBufferCoord): TDisplayCoord;
     function DisplayToBufferPos(const p: TDisplayCoord): TBufferCoord;
     function LineToRow(aLine: Integer): Integer;
@@ -863,6 +866,7 @@ type
     property SelAvail: Boolean read GetSelAvail;
     property SelLength: Integer read GetSelLength write SetSelLength;
     property SelText: string read GetSelText write SetSelText;
+    property SpecialChars: TSynSpecialChars read fSpecialChars Write SetSpecialChars;
     property StateFlags: TSynStateFlags read fStateFlags;
     property Text: string read SynGetText write SynSetText;
     property TextHint: string read FTextHint write FTextHint;
@@ -1052,6 +1056,7 @@ type
     property SearchEngine;
     property SelectedColor;
     property SelectionMode;
+    property SpecialChars;
     property TabWidth;
     property WantReturns;
     property WantTabs;
@@ -1462,6 +1467,8 @@ begin
   fWordWrapGlyph.OnChange := WordWrapGlyphChange;
   FIndicators := TSynIndicators.Create(Self);
   FBracketsHighlight := TSynBracketsHighlight.Create(Self);
+  fSpecialChars := TSynSpecialChars.Create;
+  fSpecialChars.OnChange := SpecialCharsChanged;
 
   ControlStyle := ControlStyle + [csOpaque, csSetCaption, csNeedsBorderPaint];
   Height := 150;
@@ -1608,6 +1615,7 @@ begin
   fGutter.Free;
   fWordWrapGlyph.Free;
   FBracketsHighlight.Free;
+  fSpecialChars.Free;
   FIndicators.Free;
   fOrigLines.Free;
   fCodeFolding.Free;
@@ -2780,15 +2788,26 @@ var
     X1, Y1, X2, Y2: Single;
     HitMetrics: TDwriteHitTestMetrics;
     PrintGlyph: Char;
+    Alignment: DWRITE_TEXT_ALIGNMENT;
   begin
+    Alignment := DWRITE_TEXT_ALIGNMENT_CENTER;
     if (Ch = #9) then // Tab
-      PrintGlyph := SynTabGlyph
+    begin
+      PrintGlyph := fSpecialChars.TabGlyph;
+      case fSpecialChars.TabAlign of
+        sscaLeading: Alignment := DWRITE_TEXT_ALIGNMENT_LEADING;
+        sscaCenter: Alignment := DWRITE_TEXT_ALIGNMENT_CENTER;
+        sscaTrailing: Alignment := DWRITE_TEXT_ALIGNMENT_TRAILING;
+      end;
+    end
+    else if (Ch = #$3000) then // Ideographic space
+      PrintGlyph := fSpecialChars.IdepgraphicSpaceGlyph
     else  // Space, No-break space
-      PrintGlyph := SynSpaceGlyph;
+      PrintGlyph := fSpecialChars.SpaceGlyph;
     Layout.IDW.HitTestTextPosition(Pos-1, False, X1, Y1, HitMetrics);
     Layout.IDW.HitTestTextPosition(Pos-1, True, X2, Y2, HitMetrics);
     TabLayout.Create(FTextFormat, @PrintGlyph, 1, Round(X2 - X1), fTextHeight);
-    TabLayout.IDW.SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+    TabLayout.IDW.SetTextAlignment(Alignment);
     TabLayout.SetFontColor(SpecialCharsColor, 1, 1);
     TabLayout.Draw(RT, FTextOffset + XRowOffset + Round(X1), YRowOffset(Row), SpecialCharsColor);
   end;
@@ -2991,7 +3010,7 @@ var
   LayoutWidth: Integer;
   SLine, SRow: string;
   FirstChar, LastChar: Integer;
-  ExistedNoprintChars: Boolean;
+  DoSpecialCharPainting: Boolean;
   Layout: TSynTextLayout;
   BGColor, FGColor, SpecialCharsColor: TColor;
   TokenPos, TokenLen: Integer;
@@ -3027,7 +3046,7 @@ begin
 
     SRow := Rows[Row];
     CharOffset := DisplayToBufferPos(DisplayCoord(1, Row)).Char;
-    ExistedNoprintChars := False;
+    DoSpecialCharPainting := False;
 
     // TextHint
     if (Lines.Count <= 1) and (SLine = '') then
@@ -3040,16 +3059,16 @@ begin
     if (eoShowSpecialChars in fOptions) and (LastChar >= 0) then
     begin
       for I := FirstChar to LastChar do
-        if CharInSet(SRow[I], [#$9, #$20, #$A0]) then
+        if IsWhiteChar(SRow[I]) then
         begin
-          ExistedNoprintChars := True;
+          DoSpecialCharPainting := True;
           break;
         end;
       // Add LineBreak Glyph
       if (CharOffset + LastChar = SLine.Length + 1)
         {and (LastChar = SRow.Length)} and (Line < Lines.Count) then
       begin
-        SRow := SRow + SynLineBreakGlyph;
+        SRow := SRow + SpecialChars.LineBreakGlyph;
         Inc(LastChar);
       end;
     end;
@@ -3244,15 +3263,15 @@ begin
       Layout.Draw(RT, FTextOffset + XRowOffset, YRowOffset(Row), FGColor);
     end;
 
-    // Paint tab control characters
-    if ExistedNoprintChars then
+    // Paint special characters (whitespace)
+    if DoSpecialCharPainting then
     begin
       if FullRowFG <> clNone then
         SpecialCharsColor := FullRowFG
       else
         SpecialCharsColor := WhitespaceColor(False);
       for I := FirstChar to LastChar do
-        if CharInSet(SRow[I], [#$9, #$20, #$A0]) then
+        if IsWhiteChar(SRow[I]) then
         begin
           if InRange(I, SelFirst, SelLast) and
             SameValue(fSelectedColor.Alpha, 1)
@@ -6950,6 +6969,12 @@ begin
   end;
 end;
 
+procedure TCustomSynEdit.SetSpecialChars(const Value: TSynSpecialChars);
+begin
+  FSpecialChars.Assign(Value);
+end;
+
+
 procedure TCustomSynEdit.SetActiveSelectionMode(const Value: TSynSelectionMode);
 begin
   if fActiveSelectionMode <> Value then
@@ -6971,6 +6996,12 @@ end;
 procedure TCustomSynEdit.SetAdditionalWordBreakChars(const Value: TSysCharSet);
 begin
   FAdditionalWordBreakChars := Value;
+end;
+
+procedure TCustomSynEdit.SpecialCharsChanged(Sender: TObject);
+begin
+  if (eoShowSpecialChars in Options) then
+    InvalidateLines(-1, -1);
 end;
 
 procedure TCustomSynEdit.BeginUndoBlock;
@@ -9080,9 +9111,8 @@ begin
   if Assigned(Highlighter) then
     Result := Highlighter.IsIdentChar(AChar)
   else
-    Result := (AChar = '_') or  AChar.IsLetterOrDigit or
-      CharInSet(AChar, FAdditionalIdentChars) and
-      not IsWordBreakChar(AChar);
+    Result := (AChar = '_') or AChar.IsLetterOrDigit or
+      CharInSet(AChar, FAdditionalIdentChars);
 end;
 
 function TCustomSynEdit.IsNonWhiteChar(AChar: WideChar): Boolean;
@@ -9094,10 +9124,8 @@ function TCustomSynEdit.IsWhiteChar(AChar: WideChar): Boolean;
 begin
   if Assigned(Highlighter) then
     Result := Highlighter.IsWhiteChar(AChar)
-  else if AChar.IsWhiteSpace then
-    Result := True
   else
-    Result := not (IsIdentChar(AChar) or IsWordBreakChar(AChar));
+    Result := AChar.IsWhiteSpace and not IsIdentChar(AChar);
 end;
 
 function TCustomSynEdit.IsWordBreakChar(AChar: WideChar): Boolean;
@@ -9117,7 +9145,7 @@ begin
     end;
 
     Result := Result or CharInSet(AChar, FAdditionalWordBreakChars);
-    Result := Result and not CharInSet(AChar, FAdditionalIdentChars);
+    Result := Result and not IsIdentChar(AChar);
   end;
 end;
 
