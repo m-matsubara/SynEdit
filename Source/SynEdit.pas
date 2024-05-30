@@ -140,7 +140,6 @@ type
     eoScrollPastEof,           //Allows the cursor to go past the end of file marker
     eoScrollPastEol,           //Allows the cursor to go past the last character into the white space at the end of a line
     eoShowScrollHint,          //Shows a hint of the visible line numbers when scrolling vertically
-    eoShowSpecialChars,        //Shows the special Characters
     eoSmartTabDelete,          //similar to Smart Tabs, but when you delete characters
     eoSmartTabs,               //When tabbing, the cursor will go to the next non-white space character of the previous line
     eoSpecialLineDefaultFg,    //disables the foreground text color override when using the OnSpecialLineColor event
@@ -154,8 +153,10 @@ type
     eoBracketsHighlight,       //Enable bracket highlighting
     eoAccessibility            //Enable accessibility support
     );
-
   TSynEditorOptions = set of TSynEditorOption;
+
+  TSynSpecialChars = (scWhitespace, scControlChars, scEOL);
+  TSynVisibleSpecialChars = set of TSynSpecialChars;
 
 const
   SYNEDIT_DEFAULT_OPTIONS = [eoAutoIndent, eoDragDropEditing, eoKeepCaretX,
@@ -364,6 +365,7 @@ type
     fTabWidth: Integer;
     fStateFlags: TSynStateFlags;
     fOptions: TSynEditorOptions;
+    FVisibleSpecialChars: TSynVisibleSpecialChars;
     fStatusChanges: TSynStatusChanges;
     fLastKey: word;
     fLastShiftState: TShiftState;
@@ -460,7 +462,6 @@ type
     function GetLineText: string;
     function GetMaxUndo: Integer;
     function GetModified: Boolean;
-    function GetOptions: TSynEditorOptions;
     function GetRow(RowIndex: Integer): string;
     function GetSelAvail: Boolean;
     function GetSelText: string;
@@ -509,6 +510,7 @@ type
     procedure SetMaxUndo(const Value: Integer);
     procedure SetModified(Value: Boolean);
     procedure SetOptions(Value: TSynEditorOptions);
+    procedure SetVisibleSpecialChars(Value: TSynVisibleSpecialChars);
     procedure SetOverwriteCaret(const Value: TSynEditCaretType);
     procedure SetRightEdge(Value: Integer);
     procedure SetRightEdgeColor(Value: TColor);
@@ -904,8 +906,10 @@ type
     property Keystrokes: TSynEditKeyStrokes
       read FKeystrokes write SetKeystrokes stored False;
     property MaxUndo: Integer read GetMaxUndo write SetMaxUndo default 0;
-    property Options: TSynEditorOptions read GetOptions write SetOptions
+    property Options: TSynEditorOptions read fOptions write SetOptions
       default SYNEDIT_DEFAULT_OPTIONS;
+    property VisibleSpecialChars: TSynVisibleSpecialChars
+      read FVisibleSpecialChars write SetVisibleSpecialChars;
     property OverwriteCaret: TSynEditCaretType read FOverwriteCaret
       write SetOverwriteCaret default ctBlock;
     property RightEdge: Integer read fRightEdge write SetRightEdge default 80;
@@ -1053,6 +1057,7 @@ type
     property SelectedColor;
     property SelectionMode;
     property TabWidth;
+    property VisibleSpecialChars;
     property WantReturns;
     property WantTabs;
     property WordWrap;
@@ -1149,11 +1154,19 @@ var
   IsTrailing, IsInside: LongBool;
   P2, PStart, PEnd: PChar;
   W : Integer;
+  CopyS: string;
 begin
   if (Len = 0) or (aX <= 0) then
     Result := Max((ax div fCharWidth) + 1, 1)
   else
   begin
+    if scControlChars in FVisibleSpecialChars then
+    begin
+      SetString(CopyS, P, Len);
+      SubstituteControlChars(CopyS);
+      P := PChar(CopyS);
+    end;
+
     PStart := P;
     PEnd := P + Len;
     W := 0;
@@ -1165,9 +1178,6 @@ begin
         case P^ of
            #9: Inc(W, fTabWidth * fCharWidth - W mod (fTabWidth * fCharWidth));
            #32..#126, #160: Inc(W, FCharWidth);
-           #1..#8, #10..#31, #127:
-             if eoShowSpecialChars in fOptions then
-               Inc(W, FCharWidth);
          else
            break;
          end;
@@ -1190,7 +1200,7 @@ begin
       while P2 < PEnd do
       begin
         Inc(P2);
-        if Word(P2^) in [1..127, 160] then Break;
+        if Word(P2^) in [9, 32..126, 160] then Break;
       end;
 
       Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
@@ -1228,10 +1238,23 @@ var
   HTM: TDwriteHitTestMetrics;
   P, P2, PStart, PEnd, PCol: PChar;
   X, Y: Single;
+  CopyS: string;
 begin
-  P := PChar(S);
+  if scControlChars in FVisibleSpecialChars then
+  begin
+    CopyS := S;
+    SubstituteControlChars(CopyS);
+    P := PChar(CopyS);
+    PEnd := P + CopyS.Length;
+  end
+  else
+  begin
+    P := PChar(S);
+    PEnd := P + S.Length;
+  end;
+
+
   PStart := P;
-  PEnd := P + S.Length;
   PCol := P + Col - 1;
   Result := 0;
 
@@ -1242,9 +1265,6 @@ begin
       case P^ of
          #9: Inc(Result, fTabWidth * fCharWidth - Result mod (fTabWidth * fCharWidth));
          #32..#126, #160: Inc(Result, FCharWidth);
-         #1..#8, #10..#31, #127:
-           if eoShowSpecialChars in fOptions then
-             Inc(Result, FCharWidth);
      else
          break;
        end;
@@ -1264,7 +1284,7 @@ begin
     while P2 < PEnd do
     begin
       Inc(P2);
-      if Word(P2^) in [1..127, 160] then Break;
+      if Word(P2^) in [9, 32..126, 160] then Break;
     end;
     Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
     if P2 < PCol then
@@ -2779,22 +2799,35 @@ var
            TSynDWrite.SolidBrush(AColor));
   end;
 
-  procedure DrawSpecialChars(Layout: TSynTextLayout; const Row, Pos: Integer;
+  procedure DrawWhitespace(Layout: TSynTextLayout; const Row, Pos: Integer;
     Ch: Char; SpecialCharsColor: TColor);
   var
     TabLayout: TSynTextLayout;
     X1, Y1, X2, Y2: Single;
     HitMetrics: TDwriteHitTestMetrics;
     PrintGlyph: Char;
+    Alignment: DWRITE_TEXT_ALIGNMENT;
   begin
     if (Ch = #9) then // Tab
       PrintGlyph := SynTabGlyph
-    else  // Space, No-break space
-      PrintGlyph := SynSpaceGlyph;
+    else if not Ch.IsControl then
+      PrintGlyph := SynSpaceGlyph
+    else
+      Exit;
     Layout.IDW.HitTestTextPosition(Pos-1, False, X1, Y1, HitMetrics);
     Layout.IDW.HitTestTextPosition(Pos-1, True, X2, Y2, HitMetrics);
     TabLayout.Create(FTextFormat, @PrintGlyph, 1, Round(X2 - X1), fTextHeight);
-    TabLayout.IDW.SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    Alignment := DWRITE_TEXT_ALIGNMENT_CENTER;
+    if Ch = #9 then
+    begin
+      case SynTabAlignment of
+        taLeftJustify: Alignment := DWRITE_TEXT_ALIGNMENT_LEADING;
+        taRightJustify: Alignment := DWRITE_TEXT_ALIGNMENT_TRAILING;
+      end;
+    end;
+
+    TabLayout.IDW.SetTextAlignment(Alignment);
     TabLayout.SetFontColor(SpecialCharsColor, 1, 1);
     TabLayout.Draw(RT, FTextOffset + XRowOffset + Round(X1), YRowOffset(Row), SpecialCharsColor);
   end;
@@ -2983,7 +3016,7 @@ var
     begin
       if fSelectedColor.FillWholeLines then
         Result := LinesRect.Right
-      else if eoShowSpecialChars in fOptions then
+      else if scEOL in FVisibleSpecialChars then
         Result := Round(Left + Width)
       else
         Result := Round(Left + Width) + fCharWidth;
@@ -2997,7 +3030,7 @@ var
   LayoutWidth: Integer;
   SLine, SRow: string;
   FirstChar, LastChar: Integer;
-  DoSpecialCharPainting: Boolean;
+  DoWhitespacePainting: Boolean;
   Layout: TSynTextLayout;
   BGColor, FGColor, SpecialCharsColor: TColor;
   TokenPos, TokenLen: Integer;
@@ -3033,7 +3066,6 @@ begin
 
     SRow := Rows[Row];
     CharOffset := DisplayToBufferPos(DisplayCoord(1, Row)).Char;
-    DoSpecialCharPainting := False;
 
     // TextHint
     if (Lines.Count <= 1) and (SLine = '') then
@@ -3042,24 +3074,25 @@ begin
     // Restrict the text to what can/should be displayed
     TextRangeToDisplay(SRow, FirstChar, LastChar);
 
-    // Deal with eoShowSpecialChars
-    if (eoShowSpecialChars in fOptions) and (LastChar >= 0) then
-    begin
+    // Deal with Special Chars
+    if scControlChars in FVisibleSpecialChars then
+      // Show Control graphics instead of control chars.
+      SubstituteControlChars(SRow);
+
+    DoWhitespacePainting := False;
+    if (scWhitespace in FVisibleSpecialChars) and (LastChar >= 0) then
       for I := FirstChar to LastChar do
         if IsWhiteChar(SRow[I]) then
         begin
-          DoSpecialCharPainting := True;
+          DoWhitespacePainting := True;
           break;
         end;
-      // Show Control graphics instead of control chars.
-      SubstituteControlChars(SRow);
-      // Add LineBreak Glyph
-      if (CharOffset + LastChar = SLine.Length + 1)
-        {and (LastChar = SRow.Length)} and (Line < Lines.Count) then
-      begin
-        SRow := SRow + SynLineBreakGlyph;
-        Inc(LastChar);
-      end;
+
+    if (scEOL in FVisibleSpecialChars) and (LastChar >= 0) and
+      (CharOffset + LastChar = SLine.Length + 1) and (Line < Lines.Count) then
+    begin
+      SRow := SRow + SynLineBreakGlyph;
+      Inc(LastChar);
     end;
 
     // Create the text layout
@@ -3160,7 +3193,7 @@ begin
           else
             FHighLighter.Next;
         end;
-        if (eoShowSpecialChars in fOptions) and (FullRowFG = clNone) and
+        if (scEOL in FVisibleSpecialChars) and (FullRowFG = clNone) and
           (CharOffset + LastChar = SLine.Length + 2) and
           Assigned(fHighlighter.WhitespaceAttribute) and
           (fHighlighter.WhitespaceAttribute.Foreground <> clNone)
@@ -3253,7 +3286,7 @@ begin
     end;
 
     // Paint special characters (whitespace)
-    if DoSpecialCharPainting then
+    if DoWhitespacePainting then
     begin
       if FullRowFG <> clNone then
         SpecialCharsColor := FullRowFG
@@ -3265,9 +3298,9 @@ begin
           if InRange(I, SelFirst, SelLast) and
             SameValue(fSelectedColor.Alpha, 1)
           then
-            DrawSpecialChars(Layout, Row, I - FirstChar + 1, SRow[I], SelFG)
+            DrawWhitespace(Layout, Row, I - FirstChar + 1, SRow[I], SelFG)
           else
-            DrawSpecialChars(Layout, Row, I - FirstChar + 1, SRow[I], SpecialCharsColor);
+            DrawWhitespace(Layout, Row, I - FirstChar + 1, SRow[I], SpecialCharsColor);
         end;
     end;
 
@@ -4273,7 +4306,7 @@ begin
     TSynEditStringList(fLines).TextWidth[Line-1] +  fCharWidth;
 
   { Fix rect }
-  if eoShowSpecialChars in fOptions then
+  if scEOL in FVisibleSpecialChars then
     Inc(Result.Left, fCharWidth);
 
   Result.Right := Result.Left + fCharWidth * 3 +  4 * (fCharWidth div 7);
@@ -6051,8 +6084,16 @@ function TCustomSynEdit.TextWidth(P: PChar; Len: Integer): Integer;
 var
   Layout: TSynTextLayout;
   P2, PStart, PEnd: PChar;
+  CopyS: string;
 begin
   if P^ = #0 then Exit(0);
+
+  if scControlChars in FVisibleSpecialChars then
+  begin
+    SetString(CopyS, P, Len);
+    SubstituteControlChars(CopyS);
+    P := PChar(CopyS);
+  end;
 
   PStart := P;
   PEnd:= P + Len;
@@ -6065,9 +6106,6 @@ begin
       case P^ of
          #9: Inc(Result, fTabWidth * fCharWidth - Result mod (fTabWidth * fCharWidth));
          #32..#126, #160: Inc(Result, FCharWidth);
-         #1..#8, #10..#31, #127:
-           if eoShowSpecialChars in fOptions then
-             Inc(Result, FCharWidth);
        else
          break;
        end;
@@ -6087,7 +6125,7 @@ begin
     while P2 < PEnd do
     begin
       Inc(P2);
-      if Word(P2^) in [1..127, 160] then Break;
+      if Word(P2^) in [9, 32..126, 160] then Break;
     end;
     Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
     Inc(Result, Round(Layout.TextMetrics.widthIncludingTrailingWhitespace));
@@ -7499,11 +7537,6 @@ begin
   InvalidateGutter;
 end;
 
-function TCustomSynEdit.GetOptions: TSynEditorOptions;
-begin
-  Result := fOptions;
-end;
-
 procedure TCustomSynEdit.SetOptions(Value: TSynEditorOptions);
 const
   ScrollOptions = [eoDisableScrollArrows,eoHideShowScrollbars,
@@ -7511,12 +7544,10 @@ const
 var
   bSetDrag: Boolean;
   bUpdateScroll: Boolean;
-  bInvalidate: Boolean;
 begin
   if (Value <> fOptions) then
   begin
     bSetDrag := (eoDropFiles in fOptions) <> (eoDropFiles in Value);
-    bInvalidate := (eoShowSpecialChars in fOptions) <> (eoShowSpecialChars in Value);
     bUpdateScroll := (Options * ScrollOptions) <> (Value * ScrollOptions);
     fOptions := Value;
 
@@ -7534,11 +7565,18 @@ begin
       // (un)register HWND as drop target
       if bSetDrag and not (csDesigning in ComponentState) then
         DragAcceptFiles(Handle, (eoDropFiles in fOptions));
-      if bInvalidate then
-        Invalidate;
       if bUpdateScroll then
         UpdateScrollBars;
     end;
+  end;
+end;
+
+procedure TCustomSynEdit.SetVisibleSpecialChars(Value: TSynVisibleSpecialChars);
+begin
+  if Value <> FVisibleSpecialChars then
+  begin
+    FVisibleSpecialChars := Value;
+    Invalidate;
   end;
 end;
 
@@ -7895,7 +7933,7 @@ begin
           // scan over whitespaces
           if p^ <> #0 then
             repeat
-              if (p^ <> #9) and (p^ <> #32) or (p^ <> #160) then break;
+              if (p^ <> #9) and (p^ <> #32) and (p^ <> #160) then break;
               Inc(i);
               Inc(p);
             until p^ = #0;
