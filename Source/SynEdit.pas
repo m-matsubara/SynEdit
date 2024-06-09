@@ -2806,12 +2806,24 @@ var
     X1, Y1, X2, Y2: Single;
     HitMetrics: TDwriteHitTestMetrics;
     PrintGlyph: Char;
+    PrintGlyphStyle: TFontStyles;
     Alignment: DWRITE_TEXT_ALIGNMENT;
   begin
-    if (Ch = #9) then // Tab
-      PrintGlyph := SynTabGlyph
+    if Ch = #9 then // Tab
+    begin
+      PrintGlyph      := SynTabGlyph;
+      PrintGlyphStyle := SynTabGlyphStyle;
+    end
+    else if Ch = #32 then // Space (ascii)
+    begin
+      PrintGlyph      := SynSpaceGlyph;
+      PrintGlyphStyle := SynSpaceGlyphStyle;
+    end
     else if not Ch.IsControl then
-      PrintGlyph := SynSpaceGlyph
+    begin
+      PrintGlyph      := SynNonAsciiSpaceGlyph;
+      PrintGlyphStyle := SynNonAsciiSpaceGlyphStyle;
+    end
     else
       Exit;
     Layout.IDW.HitTestTextPosition(Pos-1, False, X1, Y1, HitMetrics);
@@ -2825,12 +2837,13 @@ var
         taLeftJustify: Alignment := DWRITE_TEXT_ALIGNMENT_LEADING;
         taRightJustify: Alignment := DWRITE_TEXT_ALIGNMENT_TRAILING;
       end;
-    end
-    else if Ch <> #32 then
-      WSLayout.SetFontStyle([TFontStyle.fsUnderline], 1, 1);
+    end;
+    if PrintGlyph = #0 then	// Setting it to #0 allows you to choose not to draw.
+      Exit;
 
     WSLayout.IDW.SetTextAlignment(Alignment);
     WSLayout.SetFontColor(SpecialCharsColor, 1, 1);
+    WSLayout.SetFontStyle(PrintGlyphStyle, 1, 1);
     WSLayout.Draw(RT, FTextOffset + XRowOffset + Round(X1), YRowOffset(Row), SpecialCharsColor);
   end;
 
