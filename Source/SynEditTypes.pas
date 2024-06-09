@@ -57,7 +57,6 @@ var
   SynLineBreakGlyph: WideChar = #$21B2;
   SynSpaceGlyph: WideChar = #$2219;     //'·'
   SynTabAlignment: TAlignment = taCenter;
-  SynIdeographicSpace: WideChar = #$2219;     //'·' IdeographicSpace (Japanese full width space)
 
 type
   ESynError = class(Exception);
