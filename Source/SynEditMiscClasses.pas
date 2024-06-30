@@ -12,7 +12,7 @@
   The Original Code is based on the mwSupportClasses.pas file from the
   mwEdit component suite by Martin Waldenburg and other developers, the Initial
   Author of this file is Michael Hieke.
-  Unicode translation by MaÎl Hˆrz.
+  Unicode translation by MaÅE Hˆrz.
   All Rights Reserved.
 
   Contributors to the SynEdit and mwEdit projects are listed in the
@@ -62,8 +62,12 @@ type
     fBG: TColor;
     fFG: TColor;
     fOnChange: TNotifyEvent;
+    FAlpha: Single;
+    FFillWholeLines: Boolean;
     procedure SetBG(Value: TColor);
     procedure SetFG(Value: TColor);
+    procedure SetAlpha(Value: Single);
+    procedure SetFillWholeLines(const Value: Boolean);
   public
     constructor Create;
     procedure Assign(Source: TPersistent); override;
@@ -71,6 +75,9 @@ type
     property Background: TColor read fBG write SetBG default clHighLight;
     property Foreground: TColor read fFG write SetFG default clHighLightText;
     property OnChange: TNotifyEvent read fOnChange write fOnChange;
+    property Alpha: Single read FAlpha write SetAlpha;
+    property FillWholeLines: Boolean read FFillWholeLines write SetFillWholeLines
+      default True;
   end;
 
   TSynGutterBorderStyle = (gbsNone, gbsMiddle, gbsRight);
@@ -591,6 +598,17 @@ begin
     inherited Assign(Source);
 end;
 
+procedure TSynSelectedColor.SetAlpha(Value: Single);
+begin
+  Value := EnsureRange(Value, 0, 1);
+  if (FAlpha <> Value) then
+  begin
+    FAlpha := Value;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
 procedure TSynSelectedColor.SetBG(Value: TColor);
 begin
   if (fBG <> Value) then
@@ -610,6 +628,17 @@ begin
       fOnChange(Self);
   end;
 end;
+
+procedure TSynSelectedColor.SetFillWholeLines(const Value: Boolean);
+begin
+  if (FFillWholeLines <> Value) then
+  begin
+     FFillWholeLines := Value;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
+  end;
+end;
+
 
 { TSynGutter }
 

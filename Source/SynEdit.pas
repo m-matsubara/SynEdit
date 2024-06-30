@@ -153,6 +153,9 @@ type
 
   TSynEditorOptions = set of TSynEditorOption;
 
+  TSynSpecialChars = (scWhitespace, scControlChars, scEOL);
+  TSynVisibleSpecialChars = set of TSynSpecialChars;
+
 const
   SYNEDIT_DEFAULT_OPTIONS = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey,
     eoScrollPastEol, eoShowScrollHint, eoTabIndent, eoTabsToSpaces,
@@ -371,6 +374,7 @@ type
     fInvalidateRect: TRect;
     fStateFlags: TSynStateFlags;
     fOptions: TSynEditorOptions;
+    FVisibleSpecialChars: TSynVisibleSpecialChars;
     fStatusChanges: TSynStatusChanges;
     fLastKey: word;
     fLastShiftState: TShiftState;
@@ -506,6 +510,7 @@ type
     procedure SetMaxUndo(const Value: Integer);
     procedure SetModified(Value: Boolean);
     procedure SetOptions(Value: TSynEditorOptions);
+    procedure SetVisibleSpecialChars(Value: TSynVisibleSpecialChars);
     procedure SetOverwriteCaret(const Value: TSynEditCaretType);
     procedure SetRightEdge(Value: Integer);
     procedure SetRightEdgeColor(Value: TColor);
@@ -877,6 +882,8 @@ type
     property MaxUndo: Integer read GetMaxUndo write SetMaxUndo default 0;
     property Options: TSynEditorOptions read GetOptions write SetOptions
       default SYNEDIT_DEFAULT_OPTIONS;
+    property VisibleSpecialChars: TSynVisibleSpecialChars
+      read FVisibleSpecialChars write SetVisibleSpecialChars;
     property OverwriteCaret: TSynEditCaretType read FOverwriteCaret
       write SetOverwriteCaret default ctBlock;
     property RightEdge: Integer read fRightEdge write SetRightEdge default 80;
@@ -1016,6 +1023,7 @@ type
     property SelectedColor;
     property SelectionMode;
     property TabWidth;
+    property VisibleSpecialChars;
     property WantReturns;
     property WantTabs;
     property WordWrap;
@@ -2584,12 +2592,12 @@ var
     begin
       if Length(Token) >= Counter then
       begin
-        if (eoShowSpecialChars in fOptions) and (Token[Counter] = #32) then
+        if (scWhitespace in VisibleSpecialChars) and (Token[Counter] = #32) then
           Token[Counter] := SynSpaceGlyph
         else if Token[Counter] = #9 then
         begin
           Token[Counter] := #32;  //Tabs painted differently if necessary
-          DoTabPainting := eoShowSpecialChars in fOptions;
+          DoTabPainting := scWhitespace in VisibleSpecialChars;
         end;
       end;
       Dec(Counter);
@@ -7554,6 +7562,15 @@ begin
       Invalidate;
     if bUpdateScroll then
       UpdateScrollBars;
+  end;
+end;
+
+procedure TCustomSynEdit.SetVisibleSpecialChars(Value: TSynVisibleSpecialChars);
+begin
+  if Value <> FVisibleSpecialChars then
+  begin
+    FVisibleSpecialChars := Value;
+    Invalidate;
   end;
 end;
 

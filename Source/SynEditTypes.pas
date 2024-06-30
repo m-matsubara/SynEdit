@@ -12,7 +12,7 @@ The Original Code is: SynEditTypes.pas, released 2000-04-07.
 The Original Code is based on parts of mwCustomEdit.pas by Martin Waldenburg,
 part of the mwEdit component suite.
 Portions created by Martin Waldenburg are Copyright (C) 1998 Martin Waldenburg.
-Unicode translation by MaÎl Hˆrz.
+Unicode translation by MaÅE Hˆrz.
 All Rights Reserved.
 
 Contributors to the SynEdit and mwEdit projects are listed in the
@@ -44,16 +44,21 @@ uses
   System.Types,
   System.Math,
   Vcl.Controls,
+  Vcl.Graphics,
   System.SysUtils,
   System.Classes;
 
-const
+var
 // These might need to be localized depending on the characterset because they might be
 // interpreted as valid ident characters.
   SynTabGlyph: WideChar = #$2192;       //'->'
-  SynSoftBreakGlyph: WideChar = #$00AC; //'¨'
-  SynLineBreakGlyph: WideChar = #$00B6; //'∂'
-  SynSpaceGlyph: WideChar = #$2219;     //'∑'
+  SynTabGlyphStyle: TFontStyles = [];
+  SynTabAlignment: TAlignment = taCenter;
+  SynSpaceGlyph: WideChar = #$2219;     //'ÅE∑'
+  SynSpaceGlyphStyle: TFontStyles = [];
+  SynNonAsciiSpaceGlyph: WideChar = #$2219;     //'?'
+  SynNonAsciiSpaceGlyphStyle: TFontStyles = [];
+  SynLineBreakGlyph: WideChar = #$21B2;
 
 type
   ESynError = class(Exception);
