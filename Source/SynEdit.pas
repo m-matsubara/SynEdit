@@ -2592,9 +2592,9 @@ var
     begin
       if Length(Token) >= Counter then
       begin
-        if (scWhitespace in VisibleSpecialChars) and (Token[Counter] = #32) then
+        {if (scWhitespace in VisibleSpecialChars) and (Token[Counter] = #32) then
           Token[Counter] := SynSpaceGlyph
-        else if Token[Counter] = #9 then
+        else }if Token[Counter] = #9 then
         begin
           Token[Counter] := #32;  //Tabs painted differently if necessary
           DoTabPainting := scWhitespace in VisibleSpecialChars;
@@ -2652,6 +2652,54 @@ var
       fTextDrawer.ExtTextOut(nX, rcToken.Top, ETOOptions, rcToken,
         PWideChar(Text), nCharsToPaint, (eoShowLigatures in fOptions) and not bCurrentLine);
 
+      i := First;
+      if (Assigned(Highlighter)) then
+        fTextDrawer.SetForeColor(Highlighter.WhitespaceAttribute.Foreground)
+      else
+        fTextDrawer.SetForeColor(clGray);
+      while (i <= Last) do
+      begin
+        if (IsWhiteSpace(sTabbedToken[i])) then
+        begin
+          if (sTabbedToken[i] = #9) then
+          begin
+            Text := SynTabGlyph;
+          end
+          else if (sTabbedToken[i] = #10) then
+          begin
+            Text := SynLineBreakGlyph + #9;
+          end
+          else if (sTabbedToken[i] = #32) then
+          begin
+            if (scWhitespace in VisibleSpecialChars = False) then
+              continue;
+            Text := SynSpaceGlyph;
+          end
+          else
+          begin
+            if (scWhitespace in VisibleSpecialChars = False) then
+              continue;
+            Text := SynNonAsciiSpaceGlyph;
+          end;
+          nX := ColumnToXValue(CharsBefore + i);
+
+          rcTab.Top := rcToken.Top;
+          rcTab.Bottom := rcToken.Bottom;
+          rcTab.Left := nX;
+          rcTab.Right := nX + fTextDrawer.GetCharWidth;
+          fTextDrawer.ExtTextOut(nX, rcTab.Top, ETOOptions, rcTab, PWideChar(Text), Length(Text));
+        end;
+        if (sTabbedToken[i] = #9) then
+        begin
+          TabLen := 1;
+          while (i + CharsBefore + TabLen - 1) mod FTabWidth <> 0 do inc(TabLen);
+          Inc(i, TabLen);
+        end
+        else
+          Inc(i);
+      end;
+
+{
       if DoTabPainting then
       begin
         // fix everything before the FirstChar
@@ -2686,6 +2734,7 @@ var
           TabStart := pos(#9, sTabbedToken);
         end;
       end;
+}
       rcToken.Left := rcToken.Right;
     end;
   end;
@@ -3182,7 +3231,7 @@ var
           if (eoShowSpecialChars in fOptions) and
             (Length(sLineExpandedAtWideGlyphs) < vLastChar)
           then
-            sToken := sToken + SynLineBreakGlyph;
+            sToken := sToken + {SynLineBreakGlyph}#10;
           nTokenLen := Length(sToken);
           if bComplexLine then
           begin
@@ -3256,11 +3305,11 @@ var
           end;
           // Draw anything that's left in the TokenAccu record. Fill to the end
           // of the invalid area with the correct colors.
-          if (eoShowSpecialChars in fOptions) and fHighlighter.GetEol then
+          if {(eoShowSpecialChars in fOptions) and} fHighlighter.GetEol then
           begin
             if (attr = nil) or (attr <> fHighlighter.CommentAttribute) then
                attr := fHighlighter.WhitespaceAttribute;
-            AddHighlightToken(SynLineBreakGlyph, nTokenPos + nTokenLen, 1,
+            AddHighlightToken({SynLineBreakGlyph}#10, nTokenPos + nTokenLen, 1,
               attr.Foreground, attr.Background, []);
           end;
           PaintHighlightToken(True);
