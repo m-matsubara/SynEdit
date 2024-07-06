@@ -6698,14 +6698,16 @@ begin
                 end
                 else begin
                   // delete char
-                  CaretX := CaretX - 1;
-                  if (Temp[CaretX] >= #$DC00) and (Temp[CaretX] <= #$DFFF) then
+                  if (Temp[CaretX - 1] >= #$DC00) and (Temp[CaretX - 1] <= #$DFFF) then
                   begin
-                    CaretX := CaretX - 1;
+                    CaretX := CaretX - 2;
                     Delete(Temp, CaretX, 2);
                   end
                   else
+                  begin
+                    CaretX := CaretX - 1;
                     Delete(Temp, CaretX, 1);
+                  end;
                   Lines[CaretY - 1] := Temp;
                 end;
               end;
