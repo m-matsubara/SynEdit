@@ -339,6 +339,7 @@ type
     procedure WMSetText(var Msg: TWMSetText); message WM_SETTEXT;
     procedure WMImeChar(var Msg: TMessage); message WM_IME_CHAR;
     procedure WMImeComposition(var Msg: TMessage); message WM_IME_COMPOSITION;
+    procedure WMIMEStartComp(var Msg: TMessage); message WM_IME_STARTCOMPOSITION;
     procedure WMImeNotify(var Msg: TMessage); message WM_IME_NOTIFY;
     procedure WMImeRequest(var Message: TMessage); message WM_IME_REQUEST;
     procedure WMKillFocus(var Msg: TWMKillFocus); message WM_KILLFOCUS;
@@ -4843,6 +4844,22 @@ begin
     finally
       ImmReleaseContext(Handle, imc);
     end;
+  end;
+  inherited;
+end;
+
+procedure TCustomSynEdit.WMIMEStartComp(var Msg: TMessage);
+var
+  imc: HIMC;
+  LFont: TLogFont;
+begin
+  imc := ImmGetContext(Handle);
+  try
+    // Font settings
+    GetObject(Canvas.Font.Handle, SizeOf(TLogFont), @LFont);
+    ImmSetCompositionFont(imc, @LFont);
+  finally
+    ImmReleaseContext(Handle, imc);
   end;
   inherited;
 end;
