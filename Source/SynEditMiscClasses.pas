@@ -45,6 +45,7 @@ uses
   System.Win.Registry,
   Winapi.Windows,
   Winapi.Messages,
+  Winapi.D2D1,
   Vcl.Consts,
   Vcl.Graphics,
   Vcl.Controls,
@@ -436,7 +437,68 @@ type
     // -- DPI-Aware
   end;
 
-  { TSynHotKey }
+
+  { Dummy code}
+  TSynIdentGuidesStyle = (igsSolid, igsDotted);
+
+  { Dummy code}
+  TSynIndentGuides = class(TPersistent)
+  private
+    FColor: TColor;
+    FVisible: Boolean;
+    FStyle: TSynIdentGuidesStyle;
+    FOnChange: TNotifyEvent;
+  public
+    constructor Create;
+    procedure Assign(Source: TPersistent); override;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+  published
+    property Visible: Boolean read FVisible write FVisible default True;
+    property Style: TSynIdentGuidesStyle read FStyle write FStyle
+      default igsSolid;
+    property Color: TColor read FColor write FColor
+      default clMedGray;
+  end;
+
+  { Dummy code}
+  TSynIndicatorStyle = (sisTextDecoration, sisSquiggleMicrosoftWord,
+    sisSquiggleWordPerfect, sisRectangle, sisFilledRectangle,
+    sisRoundedRectangle, sisRoundedFilledRectangle);
+
+  { Dummy code}
+  TSynIndicatorSpec = record
+    Style: TSynIndicatorStyle;
+    Foreground,
+    Background: TD2D1ColorF;
+    FontStyle: TFontStyles;
+    constructor Create(AStyle: TSynIndicatorStyle; AForeground, ABackground: TD2D1ColorF;
+      AFontStyle: TFontStyles);
+    class function New(AStyle: TSynIndicatorStyle; AForeground, ABackground: TD2D1ColorF;
+      AFontStyle: TFontStyles): TSynIndicatorSpec; static;
+  end;
+
+  { Dummy code}
+  TSynIndicator = record
+    Id: TGUID;
+    CharStart, CharEnd : Integer;
+    Tag: NativeInt;  // for storing user data
+    constructor Create(aId: TGUID; aCharStart, aCharEnd: Integer; aTag: NativeInt = 0);
+    class function New(aId: TGUID; aCharStart, aCharEnd: Integer; aTag: NativeInt = 0): TSynIndicator; static;
+    class operator Equal(const A, B: TSynIndicator): Boolean;
+  end;
+
+  { Dummy code}
+  TSynIndicators = class
+  private
+  public
+    constructor Create(Owner: TCustomControl);
+    destructor Destroy; override;
+    procedure RegisterSpec(Id: TGUID; Spec: TSynIndicatorSpec);
+    procedure Add(Line: Integer; const Indicator: TSynIndicator; Invalidate: Boolean = True);
+    procedure Clear; overload;
+    procedure Clear(Id: TGUID; Invalidate: Boolean = True; Line: Integer = -1);
+        overload;
+  end;
 
 const
   BorderWidth = 0;
@@ -2406,5 +2468,85 @@ begin
       FOwner.Changed;
   end;
 end;
+
+
+{Dummy code}
+constructor TSynIndentGuides.Create;
+begin
+  FColor := clWindow;
+  FVisible := False;
+end;
+
+{Dummy code}
+procedure TSynIndentGuides.Assign(Source: TPersistent);
+begin
+
+end;
+
+
+{Dummy code}
+constructor TSynIndicatorSpec.Create(AStyle: TSynIndicatorStyle; AForeground, ABackground: TD2D1ColorF;
+  AFontStyle: TFontStyles);
+begin
+
+end;
+
+{Dummy code}
+class function TSynIndicatorSpec.New(AStyle: TSynIndicatorStyle; AForeground, ABackground: TD2D1ColorF;
+  AFontStyle: TFontStyles): TSynIndicatorSpec;
+begin
+
+end;
+
+{ Dummy code}
+constructor TSynIndicator.Create(aId: TGUID; aCharStart, aCharEnd: Integer; aTag: NativeInt = 0);
+begin
+
+end;
+
+class function TSynIndicator.New(aId: TGUID; aCharStart, aCharEnd: Integer; aTag: NativeInt = 0): TSynIndicator;
+begin
+
+end;
+
+class operator TSynIndicator.Equal(const A, B: TSynIndicator): Boolean;
+begin
+
+end;
+
+
+{ Dummy code}
+constructor TSynIndicators.Create(Owner: TCustomControl);
+begin
+  inherited Create;
+end;
+
+destructor TSynIndicators.Destroy;
+begin
+
+end;
+
+procedure TSynIndicators.RegisterSpec(Id: TGUID; Spec: TSynIndicatorSpec);
+begin
+
+end;
+
+procedure TSynIndicators.Add(Line: Integer; const Indicator: TSynIndicator; Invalidate: Boolean = True);
+begin
+
+end;
+
+procedure TSynIndicators.Clear;
+begin
+
+end;
+
+procedure TSynIndicators.Clear(Id: TGUID; Invalidate: Boolean = True; Line: Integer = -1);
+begin
+
+end;
+
+
+
 
 end.

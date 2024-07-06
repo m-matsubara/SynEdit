@@ -139,7 +139,7 @@ type
     eoScrollPastEof,           //Allows the cursor to go past the end of file marker
     eoScrollPastEol,           //Allows the cursor to go past the last character into the white space at the end of a line
     eoShowScrollHint,          //Shows a hint of the visible line numbers when scrolling vertically
-    eoShowSpecialChars,        //Shows the special Characters
+//    eoShowSpecialChars,        //Shows the special Characters
     eoSmartTabDelete,          //similar to Smart Tabs, but when you delete characters
     eoSmartTabs,               //When tabbing, the cursor will go to the next non-white space character of the previous line
     eoSpecialLineDefaultFg,    //disables the foreground text color override when using the OnSpecialLineColor event
@@ -148,7 +148,11 @@ type
     eoTrimTrailingSpaces,      //Spaces at the end of lines will be trimmed and not saved
     eoShowLigatures,           //Shows font ligatures, by default it is disabled
     eoCopyPlainText,           //Do not include additional clipboard formats when you copy to Clipboard or drag text
-    eoWrapWithRightEdge        //WordWrap with RightEdge position instead CharsInWindows
+//    eoWrapWithRightEdge        //WordWrap with RightEdge position instead CharsInWindows
+    eoNoHTMLBackground,        //Dummy code. Ignore SynEdit background color when copying in HTML format
+    eoWrapWithRightEdge,       //Dummy code. WordWrap with RightEdge position instead of the whole text area
+    eoBracketsHighlight,       //Dummy code. Enable bracket highlighting
+    eoAccessibility            //Dummy code. Enable accessibility support
     );
 
   TSynEditorOptions = set of TSynEditorOption;
@@ -157,9 +161,13 @@ type
   TSynVisibleSpecialChars = set of TSynSpecialChars;
 
 const
-  SYNEDIT_DEFAULT_OPTIONS = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey,
-    eoScrollPastEol, eoShowScrollHint, eoTabIndent, eoTabsToSpaces,
-    eoSmartTabDelete, eoGroupUndo];
+//  SYNEDIT_DEFAULT_OPTIONS = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey,
+//    eoScrollPastEol, eoShowScrollHint, eoTabIndent, eoTabsToSpaces,
+//    eoSmartTabDelete, eoGroupUndo];
+  SYNEDIT_DEFAULT_OPTIONS = [eoAutoIndent, eoDragDropEditing, eoKeepCaretX,
+    eoEnhanceHomeKey, eoEnhanceEndKey, eoHideShowScrollbars,
+    eoDisableScrollArrows, eoShowScrollHint, eoTabIndent, eoTabsToSpaces,
+    eoSmartTabDelete, eoGroupUndo, eoDropFiles{, eoShowLigatures}];
 
 type
   TCreateParamsW = record
@@ -345,6 +353,7 @@ type
     fTopLine: Integer;
     fHighlighter: TSynCustomHighlighter;
     fSelectedColor: TSynSelectedColor;
+    FIndentGuides: TSynIndentGuides;
     fActiveLineColor: TColor;
     fUndoRedo: ISynEditUndo;
     fBookMarks: array[0..9] of TSynEditMark; // these are just references, fMarkList is the owner
@@ -387,6 +396,7 @@ type
     fScrollDeltaX, fScrollDeltaY: Integer;
     fClickCountTimer: TStopWatch;
     fClickCount: Integer;
+    FIndicators: TSynIndicators;// Dummy code;
     FPaintTransientLock: Integer;
     FIsScrolling: Boolean;
     FAdditionalWordBreakChars: TSysCharSet;
@@ -769,6 +779,8 @@ type
     procedure UnlockUndo;
     procedure UnregisterCommandHandler(AHandlerProc: THookedCommandEvent);
     function UpdateAction(Action: TBasicAction): Boolean; override;
+    function ValidTextPos(const S: String; Index: Integer; Trailing: Boolean):
+        Integer; overload;
     procedure SetFocus; override;
 
     procedure AddKeyUpHandler(aHandler: TKeyEvent);
@@ -831,6 +843,7 @@ type
     property Color;
     property Cursor default crIBeam;
     property Font: TFont read GetFont write SetFont;
+    property Indicators: TSynIndicators read FIndicators; // Dummy code
     property Highlighter: TSynCustomHighlighter
       read fHighlighter write SetHighlighter;
     property LeftChar: Integer read fLeftChar write SetLeftChar;
@@ -872,6 +885,8 @@ type
     property Gutter: TSynGutter read fGutter write SetGutter;
     property HideSelection: Boolean read fHideSelection write SetHideSelection
       default False;
+    property IndentGuides: TSynIndentGuides
+      read FIndentGuides write FIndentGuides;
     property InsertCaret: TSynEditCaretType read FInsertCaret
       write SetInsertCaret default ctVerticalLine;
     property InsertMode: boolean read fInserting write SetInsertMode
@@ -1146,6 +1161,22 @@ begin
   Result.Y := (RowCol.Row - fTopLine) * fTextHeight;
 end;
 
+function TCustomSynEdit.ValidTextPos(const S: String; Index: Integer;
+  Trailing: Boolean): Integer;
+begin
+  if not InRange(Index, 2, S.Length) or (Word(S[Index]) in [9, 32..126]) then
+    Exit(Index);
+
+  if (S[Index] >= #$DC00) and (S[Index] <= #$DFFF) then
+  begin
+    if Trailing then
+      exit(Index + 1)
+    else
+      exit(Index - 1);
+  end;
+  Exit(Index);
+end;
+
 procedure TCustomSynEdit.ComputeCaret(X, Y: Integer);
 //X,Y are pixel coordinates
 var
@@ -1257,6 +1288,7 @@ begin
   fActiveLineColor := clNone;
   fSelectedColor := TSynSelectedColor.Create;
   fSelectedColor.OnChange := SelectedColorsChanged;
+  FIndentGuides := TSynIndentGuides.Create;
   fBookMarkOpt := TSynBookMarkOpt.Create(Self);
   fBookMarkOpt.OnChange := BookMarkOptionsChanged;
   fTextMargin := 3;
@@ -1266,6 +1298,7 @@ begin
   fGutter.OnChange := GutterChanged;
   fWordWrapGlyph := TSynGlyph.Create(HINSTANCE, 'SynEditWrapped');
   fWordWrapGlyph.OnChange := WordWrapGlyphChange;
+  FIndicators := TSynIndicators.Create(Self); // Dummy code
   ControlStyle := ControlStyle + [csOpaque, csSetCaption];
   ControlStyle := ControlStyle + [csNeedsBorderPaint];
   Height := 150;
@@ -1414,6 +1447,7 @@ begin
   fKbdHandler.Free;
   fFocusList.Free;
   fSelectedColor.Free;
+  FIndentGuides.Free;
   fUndoRedo := nil;
   fOrigUndoRedo := nil;
   fGutter.Free;
@@ -2682,12 +2716,23 @@ var
             Text := SynNonAsciiSpaceGlyph;
           end;
           nX := ColumnToXValue(CharsBefore + i);
-
           rcTab.Top := rcToken.Top;
           rcTab.Bottom := rcToken.Bottom;
           rcTab.Left := nX;
           rcTab.Right := nX + fTextDrawer.GetCharWidth;
+          if (i >= 2) and (sTabbedToken[i - 1] = FillerChar) then
+          begin
+            Dec(nX, fTextDrawer.GetCharWidth div 2);
+            Dec(rcTab.Left, fTextDrawer.GetCharWidth);
+          end;
           fTextDrawer.ExtTextOut(nX, rcTab.Top, ETOOptions, rcTab, PWideChar(Text), Length(Text));
+{
+          Canvas.MoveTo(rcTab.Left, rcTab.Top);
+          Canvas.LineTo(rcTab.Right - 1, rcTab.Top);
+          Canvas.LineTo(rcTab.Right - 1, rcTab.Bottom - 1);
+          Canvas.LineTo(rcTab.Left, rcTab.Bottom - 1);
+          Canvas.LineTo(rcTab.Left, rcTab.Top);
+}
         end;
         if (sTabbedToken[i] = #9) then
         begin
@@ -3228,9 +3273,9 @@ var
             sToken := Copy(sLineExpandedAtWideGlyphs, vFirstChar, vLastChar - vFirstChar)
           else
             sToken := Copy(sLineExpandedAtWideGlyphs, 1, vLastChar);
-          if (eoShowSpecialChars in fOptions) and
-            (Length(sLineExpandedAtWideGlyphs) < vLastChar)
-          then
+//          if (eoShowSpecialChars in fOptions) and
+//            (Length(sLineExpandedAtWideGlyphs) < vLastChar)
+//          then
             sToken := sToken + {SynLineBreakGlyph}#10;
           nTokenLen := Length(sToken);
           if bComplexLine then
@@ -3668,8 +3713,13 @@ begin
       Lines[fCaretY-1] := TS;
   end;
 
+
   if (Value.Char <> fCaretX) or (Value.Line <> fCaretY) then
   begin
+    S := Lines[Value.Line-1];
+    if (Length(S) >= Value.Char) and (S[Value.Char] >= #$DC00) and (S[Value.Char] <= #$DFFF) then
+      Inc(Value.Char);
+
     IncPaintLock;
     try
       // simply include the flags, fPaintLock is > 0
@@ -4363,7 +4413,7 @@ begin
     (TSynEditStringList(fLines).ExpandedStringLengths[Line-1] + 1) * fCharWidth;
 
   { Fix rect }
-  if eoShowSpecialChars in fOptions then
+//  if eoShowSpecialChars in fOptions then
     Inc(Result.Left, fCharWidth);
 
   // Deal wwth horizontal Scroll
@@ -6465,7 +6515,13 @@ begin
                 else begin
                   // delete char
                   CaretX := CaretX - 1;
-                  Delete(Temp, CaretX, 1);
+                  if (Temp[CaretX] >= #$DC00) and (Temp[CaretX] <= #$DFFF) then
+                  begin
+                    CaretX := CaretX - 1;
+                    Delete(Temp, CaretX, 2);
+                  end
+                  else
+                    Delete(Temp, CaretX, 1);
                   Lines[CaretY - 1] := Temp;
                 end;
               end;
@@ -6490,7 +6546,10 @@ begin
             if CaretX <= Len then
             begin
               // delete char
-              Delete(Temp, CaretX, 1);
+              if (Temp[CaretX] >= #$D800) and (Temp[CaretX] <= #$DBFF) then
+                Delete(Temp, CaretX, 2)
+              else
+                Delete(Temp, CaretX, 1);
               Lines[CaretY - 1] := Temp;
             end
             else begin
@@ -7593,7 +7652,7 @@ begin
   if (Value <> fOptions) then
   begin
     bSetDrag := (eoDropFiles in fOptions) <> (eoDropFiles in Value);
-    bInvalidate := (eoShowSpecialChars in fOptions) <> (eoShowSpecialChars in Value);
+    bInvalidate := False;//(eoShowSpecialChars in fOptions) <> (eoShowSpecialChars in Value);
     bUpdateScroll := (Options * ScrollOptions) <> (Value * ScrollOptions);
 
     FUndoRedo.GroupUndo := eoGroupUndo in Options;
@@ -7715,6 +7774,7 @@ begin
     // don't go past last char when ScrollPastEol option not set
     if (DX > 0) and bChangeY then
       ptDst.Char := Min(ptDst.Char, nLineLen + 1);
+    ptDst.Char := ValidTextPos(s, ptDst.Char, DX > 0);
   end;
   // set caret and block begin / end
   MoveCaretAndSelection(fBlockBegin, ptDst, SelectionCommand);
@@ -7762,6 +7822,8 @@ begin
     if eoKeepCaretX in Options then
       ptDst.Column := fLastCaretX;
   end;
+  ptDst.Column := ValidTextPos(Lines[ptDst.Row - 1], ptDst.Column, False);
+
   vDstLineChar := DisplayToBufferPos(ptDst);
   SaveLastCaretX := fLastCaretX;
 
@@ -9031,6 +9093,8 @@ begin
         inc(x);
     end;
     Result.Char := i;
+    if (Length(s) >= Result.Char) and (S[Result.Char] >= #$DC00) and (S[Result.Char] <= #$DFFF) then
+      Inc(Result.Char);
   end;
 end;
 
