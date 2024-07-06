@@ -2618,6 +2618,7 @@ var
   const
     ETOOptions = [tooOpaque, tooClipped];
   begin
+//    Token := Copy(Token, 1, Last - First);  // If the string that follows is a nuisance when debugging, uncomment it.
     sTabbedToken := Token;
     DoTabPainting := False;
 
@@ -3136,6 +3137,24 @@ var
   end;
 //-- CodeFolding
 
+  function ExpandTab(sText: String): String;
+  var
+    i: Integer;
+  begin
+    Result := '';
+    for i := 1 to Length(sText) do
+    begin
+      Result := Result + sText[i];
+      if (sText[i] = #9) then
+      begin
+        while ((Length(Result) mod fTabWidth) <> 0) do
+        begin
+          Result := Result + #9;
+        end;
+      end;
+    end;
+  end;
+
   procedure PaintLines;
   var
     nLine: Integer; // line index for the loop
@@ -3169,8 +3188,11 @@ var
       if UseCodeFolding and AllFoldRanges.FoldHidesLine(nLine) then
         continue;
 //-- CodeFolding
-      sLine := TSynEditStringList(Lines).ExpandedStrings[nLine - 1];
+      //sLine := TSynEditStringList(Lines).ExpandedStrings[nLine - 1];
+      sLine := Lines[nLine - 1];
       sLineExpandedAtWideGlyphs := ExpandAtWideGlyphs(sLine);
+      sLineExpandedAtWideGlyphs := ExpandTab(sLineExpandedAtWideGlyphs); // When expanding a tab, the digits of the tab will not match unless it is expanded after wide character string expansion.
+      sLine := StringReplace(sLineExpandedAtWideGlyphs, FillerChar, '', [TReplaceFlag.rfReplaceAll]);	// Cancel expansion of wide string (delete all U+E000)
       // determine whether will be painted with ActiveLineColor
       bCurrentLine := CaretY = nLine;
       // Initialize the text and background colors, maybe the line should
