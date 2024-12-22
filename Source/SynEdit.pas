@@ -682,7 +682,7 @@ type
     procedure BeginUndoBlock;
     procedure BeginUpdate;
     function CaretInView: Boolean;
-    function CharIndexToRowCol(Index: Integer; LineBreak: string = SLineBreak): TBufferCoord;
+    function CharIndexToRowCol(Index: Integer; LineBreak: string = ''): TBufferCoord;
     procedure Clear;
     procedure ClearAll;
     procedure ClearBookMark(BookMark: Integer);
@@ -770,7 +770,7 @@ type
     function RowColumnInView(RowCol: TDisplayCoord): Boolean;
     function ColumnToPixels(const S: string; Col: Integer): Integer;
     function RowColumnToPixels(const RowCol: TDisplayCoord): TPoint;
-    function RowColToCharIndex(RowCol: TBufferCoord; LineBreak: string = SLineBreak): Integer;
+    function RowColToCharIndex(RowCol: TBufferCoord; LineBreak: string = ''): Integer;
     function SearchReplace(const ASearch, AReplace: string;
       AOptions: TSynSearchOptions): Integer;
     procedure SelectAll;
@@ -1794,18 +1794,18 @@ begin
           for i := First + 1 to Last - 1 do
             Inc(TotalLen, Length(Lines[i]));
           Inc(TotalLen, ColTo - 1);
-          Inc(TotalLen, Length(SLineBreak) * (Last - First));
+          Inc(TotalLen, Length(Lines.LineBreak) * (Last - First));
           // step2: build up result string
           SetLength(Result, TotalLen);
           P := PWideChar(Result);
           CopyAndForward(Lines[First], ColFrom, MaxInt, P);
 
-          CopyAndForward(SLineBreak, 1, MaxInt, P);
+          CopyAndForward(Lines.LineBreak, 1, MaxInt, P);
 
           for i := First + 1 to Last - 1 do
           begin
             CopyAndForward(Lines[i], 1, MaxInt, P);
-            CopyAndForward(SLineBreak, 1, MaxInt, P);
+            CopyAndForward(Lines.LineBreak, 1, MaxInt, P);
           end;
           CopyAndForward(Lines[Last], 1, ColTo - 1, P);
         end;
@@ -1824,7 +1824,7 @@ begin
           if ColFrom > ColTo then
             SwapInt(ColFrom, ColTo);
           // step1: pre-allocate string large enough for worst case
-          TotalLen := ((ColTo - ColFrom) + Length(sLineBreak)) *
+          TotalLen := ((ColTo - ColFrom) + Length(Lines.LineBreak)) *
             (Last - First +1);
           SetLength(Result, TotalLen);
           P := PWideChar(Result);
@@ -1842,10 +1842,10 @@ begin
             r := DisplayToBufferPos(vAuxRowCol).Char;
 
             vTrimCount := CopyPaddedAndForward(s, l, r - l, P);
-            TotalLen := TotalLen + (r - l) - vTrimCount + Length(sLineBreak);
-            CopyAndForward(sLineBreak, 1, MaxInt, P);
+            TotalLen := TotalLen + (r - l) - vTrimCount + Length(Lines.LineBreak);
+            CopyAndForward(Lines.LineBreak, 1, MaxInt, P);
           end;
-          SetLength(Result, TotalLen - Length(sLineBreak));
+          SetLength(Result, TotalLen - Length(Lines.LineBreak));
         end;
       smLine:
         begin
@@ -1853,20 +1853,20 @@ begin
           // line break code(s) of the last line will not be added.
           // step1: calculate total length of result string
           for i := First to Last do
-            Inc(TotalLen, Length(Lines[i]) + Length(SLineBreak));
+            Inc(TotalLen, Length(Lines[i]) + Length(Lines.LineBreak));
           if Last = Lines.Count then
-            Dec(TotalLen, Length(SLineBreak));
+            Dec(TotalLen, Length(Lines.LineBreak));
           // step2: build up result string
           SetLength(Result, TotalLen);
           P := PWideChar(Result);
           for i := First to Last - 1 do
           begin
             CopyAndForward(Lines[i], 1, MaxInt, P);
-            CopyAndForward(SLineBreak, 1, MaxInt, P);
+            CopyAndForward(Lines.LineBreak, 1, MaxInt, P);
           end;
           CopyAndForward(Lines[Last], 1, MaxInt, P);
           if (Last + 1) < Lines.Count then
-            CopyAndForward(SLineBreak, 1, MaxInt, P);
+            CopyAndForward(Lines.LineBreak, 1, MaxInt, P);
         end;
     end;
   end;
@@ -5341,9 +5341,9 @@ begin
       then
         break;
       if (Command = ecCopyLineDown) or (Command = ecMoveLineDown) then
-        Text := Text + SLineBreak + Lines[vCaretRow - 1]
+        Text := Text + Lines.LineBreak + Lines[vCaretRow - 1]
       else
-        Text := Text + Lines[vCaretRow - 1] + SLineBreak;
+        Text := Text + Lines[vCaretRow - 1] + Lines.LineBreak;
     end;
     // Add the line over which we move
     if Command = ecMoveLineDown then
@@ -9250,6 +9250,8 @@ begin
   x := 0;
   y := 0;
   Chars := 0;
+  if (LineBreak = '') then
+    LineBreak := Lines.LineBreak;
   LBLength := LineBreak.Length;
   while y < Lines.Count do
   begin
@@ -9275,6 +9277,8 @@ function TCustomSynEdit.RowColToCharIndex(RowCol: TBufferCoord;
 var
   synEditStringList : TSynEditStringList;
 begin
+  if (LineBreak = '') then
+    LineBreak := Lines.LineBreak;
   RowCol.Line := Max(0, Min(Lines.Count, RowCol.Line) - 1);
   synEditStringList := (FLines as TSynEditStringList);
   Result :=  synEditStringList.LineCharIndex(RowCol.Line)
