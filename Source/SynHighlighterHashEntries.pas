@@ -12,7 +12,7 @@ The Original Code is: SynHighlighterHashEntries.pas, released 2000-04-21.
 
 The Initial Author of this file is Michael Hieke.
 Portions created by Michael Hieke are Copyright 2000 Michael Hieke.
-Unicode translation by Ma�l Hz.
+Unicode translation by Ma・ Hz.
 All Rights Reserved.
 
 Contributors to the SynEdit project are listed in the Contributors.txt file.
@@ -146,7 +146,11 @@ begin
         Inc(pEnd);
       // call the AKeywordProc with the keyword
       SetString(Keyword, pStart, pEnd - pStart);
-      AKeywordProc(Keyword, AKind);
+      try
+        AKeywordProc(Keyword, AKind);
+      except
+        // 重複はエラーになるが、無視する
+      end;
       Keyword := '';
       // pEnd points to a char not in Identifiers, restart after that
       pStart := pEnd + 1;
