@@ -9563,20 +9563,21 @@ end;
 function TCustomSynEdit.CharIndexToRowCol(Index: Integer): TBufferCoord;
 { Index is 0-based; Result.x and Result.y are 1-based }
 var
-  x, y, Chars: Integer;
+  x, y, Chars, LBLength: Integer;
 begin
   x := 0;
   y := 0;
   Chars := 0;
+  LBLength := Lines.LineBreak.Length;
   while y < Lines.Count do
   begin
     x := Length(Lines[y]);
-    if Chars + x + 2 > Index then
+    if Chars + x + LBLength > Index then
     begin
       x := Index - Chars;
       break;
     end;
-    Inc(Chars, x + 2);
+    Inc(Chars, x + LBLength);
     x := 0;
     Inc(y);
   end;
@@ -9587,13 +9588,15 @@ end;
 function TCustomSynEdit.RowColToCharIndex(RowCol: TBufferCoord): Integer;
 { Row and Col are 1-based; Result is 0-based }
 var
+  LBLength: Integer;
   synEditStringList : TSynEditStringList;
 begin
+  LBLength := Lines.LineBreak.Length;
   RowCol.Line := Max(0, Min(Lines.Count, RowCol.Line) - 1);
   synEditStringList := (FLines as TSynEditStringList);
   // CharIndexToRowCol assumes a line break size of two
   Result :=  synEditStringList.LineCharIndex(RowCol.Line)
-           + RowCol.Line * 2 + (RowCol.Char -1);
+           + RowCol.Line * LBLength + (RowCol.Char -1);
 end;
 
 procedure TCustomSynEdit.Clear;
