@@ -1889,6 +1889,7 @@ end;
 class function TSynDWrite.RenderTarget: ID2D1DCRenderTarget;
 Var
   RT: ID2D1DCRenderTarget;
+  RP: IDWriteRenderingParams;
 begin
   if SingletonRenderTarget = nil then
   begin
@@ -1910,6 +1911,8 @@ begin
       SingletonRenderTarget.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
       SingletonRenderTarget.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
     end;
+    DWriteFactory.CreateCustomRenderingParams(2.2, 1.0, 1.0, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_CLEARTYPE_NATURAL_SYMMETRIC, RP);
+    SingletonRenderTarget.SetTextRenderingParams(RP);
   end;
   Result := SingletonRenderTarget;
 end;
