@@ -2484,6 +2484,12 @@ begin
       var RP: IDWriteRenderingParams;
       TSynDWrite.DWriteFactory.CreateCustomRenderingParams(2.2, 1.0, 1.0, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_CLEARTYPE_NATURAL_SYMMETRIC, RP);
       RT.SetTextRenderingParams(RP);
+    end
+    else
+    begin
+      var RP: IDWriteRenderingParams;
+      TSynDWrite.DWriteFactory.CreateCustomRenderingParams(2.2, 1.0, 1.0, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_DEFAULT, RP);
+      RT.SetTextRenderingParams(RP);
     end;
     RT.BeginDraw;
     RT.SetTransform(TD2DMatrix3X2F.Translation(-rcClip.Left, -rcClip.Top));
