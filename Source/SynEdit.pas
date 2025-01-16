@@ -386,6 +386,7 @@ type
     SelStartBeforeSearch: integer;
     SelLengthBeforeSearch: integer;
     FBracketsHighlight: TSynBracketsHighlight;
+    FUseAntiAlias: Boolean;
 
     // Accessibility
     FUIAutomationProvider: IInterface;  // IRawElementProviderSimple
@@ -849,6 +850,7 @@ type
     property Font;
     property Indicators: TSynIndicators read FIndicators;
     property BracketsHighlight: TSynBracketsHighlight read FBracketsHighlight;
+    property UseAntiAlias: Boolean read FUseAntiAlias write FUseAntiAlias;
     property Highlighter: TSynCustomHighlighter read fHighlighter
       write SetHighlighter;
     property LeftChar: Integer read fLeftChar write SetLeftChar;
@@ -2477,6 +2479,12 @@ begin
     //Create the RenderTarget
     RT := TSynDWrite.RenderTarget;
     RT.BindDC(Canvas.Handle, rcClip);
+    if (FUseAntiAlias) then
+    begin
+      var RP: IDWriteRenderingParams;
+      TSynDWrite.DWriteFactory.CreateCustomRenderingParams(2.2, 1.0, 1.0, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_CLEARTYPE_NATURAL_SYMMETRIC, RP);
+      RT.SetTextRenderingParams(RP);
+    end;
     RT.BeginDraw;
     RT.SetTransform(TD2DMatrix3X2F.Translation(-rcClip.Left, -rcClip.Top));
 
