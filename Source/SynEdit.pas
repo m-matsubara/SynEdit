@@ -531,6 +531,7 @@ type
     procedure SetBorderStyle(Value: TSynBorderStyle);
     procedure SetCaretX(Value: Integer);
     procedure SetCaretY(Value: Integer);
+    procedure SetDisplayXY(const aPos: TDisplayCoord);  // Backport from PyScripter/SynEdit
     procedure InternalSetCaretX(Value: Integer);
     procedure InternalSetCaretY(Value: Integer);
     procedure SetInternalDisplayXY(const aPos: TDisplayCoord);
@@ -866,7 +867,7 @@ type
       write SetActiveLineColor default clNone;
     property DisplayX: Integer read GetDisplayX;
     property DisplayY: Integer read GetDisplayY;
-    property DisplayXY: TDisplayCoord read GetDisplayXY;
+    property DisplayXY: TDisplayCoord read GetDisplayXY write SetDisplayXY;
     property DisplayLineCount: Integer read GetDisplayLineCount;
     property CharsInWindow: Integer read fCharsInWindow;
     property CharWidth: Integer read fCharWidth;
@@ -3645,6 +3646,30 @@ end;
 procedure TCustomSynEdit.SetCaretY(Value: Integer);
 begin
   SetCaretXY(BufferCoord(fCaretX, Value));
+end;
+
+procedure TCustomSynEdit.SetDisplayXY(const aPos: TDisplayCoord);
+var
+  OldCaretAtEOL: Boolean;
+begin
+  // Backport from PyScripter/SynEdit
+  OldCaretAtEOL := fCaretAtEOL;
+  IncPaintLock;
+  SetCaretXYEx(False, DisplayToBufferPos(aPos));
+
+  // fCaretEOL is set if we are at the end of wrapped row
+  fCaretAtEOL := WordWrap and (aPos.Row <= fWordWrapPlugin.RowCount) and
+    (aPos.Column > fWordWrapPlugin.GetRowLength(aPos.Row)) and
+    (DisplayY <> aPos.Row);
+  if fCaretAtEOL <> OldCaretAtEOL then
+  begin
+    InvalidateLine(CaretY);
+    Include(fStateFlags, sfCaretChanged);
+    //UpdateLastPosX;
+  end;
+
+  EnsureCursorPosVisible;
+  DecPaintLock;
 end;
 
 procedure TCustomSynEdit.InternalSetCaretX(Value: Integer);
