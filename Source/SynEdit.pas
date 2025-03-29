@@ -1206,6 +1206,7 @@ begin
       end;
 
       Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
+      Layout.SetTypography(typNoLigatures, 1, P2-P);
       CheckOSError(Layout.IDW.HitTestPoint(aX - W,
         fTextHeight div 2, IsTrailing, IsInside, HTM));
 
@@ -1289,6 +1290,7 @@ begin
       if Word(P2^) in [9, 32..126, 160] then Break;
     end;
     Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
+    Layout.SetTypography(typNoLigatures, 1, P2-P);
     if P2 < PCol then
     begin
       P := P2;
@@ -1347,6 +1349,7 @@ begin
     Inc(P);
 
   Layout.Create(FTextFormat, PStart, P - PStart + 1, MaxInt, fTextHeight);
+  Layout.SetTypography(typNoLigatures, 1, P - PStart + 1);
   CheckOSError(Layout.IDW.HitTestTextPosition(PChar(S) + Index - PStart - 1,
     False, X, Y, HTM));
 
@@ -6157,6 +6160,7 @@ begin
       if Word(P2^) in [9, 32..126, 160] then Break;
     end;
     Layout.Create(FTextFormat, P, P2-P, MaxInt, fTextHeight);
+    Layout.SetTypography(typNoLigatures, 1, P2-P);
     Inc(Result, Round(Layout.TextMetrics.widthIncludingTrailingWhitespace));
     P := P2;
   end;
