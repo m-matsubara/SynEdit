@@ -2738,13 +2738,19 @@ var
           else if (sTabbedToken[i] = #32) then
           begin
             if (scWhitespace in VisibleSpecialChars = False) then
+            begin
+              Inc(i);
               continue;
+            end;
             Text := SynSpaceGlyph;
           end
           else
           begin
             if (scWhitespace in VisibleSpecialChars = False) then
+            begin
+              Inc(i);
               continue;
+            end;
             Text := SynNonAsciiSpaceGlyph;
           end;
           nX := ColumnToXValue(CharsBefore + i);
